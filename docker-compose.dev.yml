@@ -1,4 +1,5 @@
-# Chỉ chạy PostgreSQL — dùng khi develop app trên máy local
+# (Tùy chọn) Chỉ PostgreSQL — khi dev BE/FE trên máy có Maven/Node.
+# Nếu chỉ dùng Docker: bỏ qua file này, dùng docker compose up -d --build
 services:
   postgres:
     image: postgres:16-alpine

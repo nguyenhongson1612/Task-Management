@@ -1,188 +1,128 @@
-# Task Management API
+# Task Management
 
-REST API backend xây dựng bằng **Spring Boot 3**, kết nối **PostgreSQL**, chạy bằng **Docker**, có sẵn endpoint kiểm tra health.
+Monorepo **Backend (Spring Boot) + Frontend (Vue 3) + PostgreSQL** — chạy hoàn toàn bằng **Docker**, không cần cài Maven hay Node.js trên máy.
 
-## Tech stack
+## Chỉ cần cài
 
-| Thành phần | Phiên bản / Ghi chú |
-|------------|---------------------|
-| Java | 21 |
-| Spring Boot | 3.4.5 |
-| PostgreSQL | 16 (Alpine image) |
-| Build tool | Maven |
-| Container | Docker & Docker Compose |
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 
-## Yêu cầu
+Maven và npm chỉ chạy **bên trong container** khi build image — bạn không cần cài chúng.
 
-Chọn **một** trong hai cách chạy:
+## Chạy dự án (một lệnh)
 
-| Cách | Cần cài |
-|------|---------|
-| Docker (khuyên dùng) | [Docker Desktop](https://www.docker.com/products/docker-desktop/) |
-| Local | Java 21, Maven 3.9+, Docker (chỉ cho Postgres) |
+```powershell
+cd task_management_java
+docker compose up -d --build
+```
+
+Hoặc dùng script (Windows):
+
+```powershell
+.\scripts\start.ps1
+```
+
+| Service | URL |
+|---------|-----|
+| **Frontend** | http://localhost:5173 |
+| **Backend** | http://localhost:8080 |
+| **PostgreSQL** | `localhost:5432` (user: `taskuser`, pass: `taskpass`, db: `taskdb`) |
+
+## Lệnh thường dùng
+
+```powershell
+# Xem log tất cả services
+docker compose logs -f
+
+# Xem log riêng backend / frontend
+docker compose logs -f app
+docker compose logs -f frontend
+
+# Dừng (giữ dữ liệu DB)
+docker compose down
+
+# Dừng và xóa volume DB
+docker compose down -v
+
+# Build lại sau khi sửa code Java
+docker compose up -d --build app
+
+# Build lại sau khi sửa code Vue
+docker compose up -d --build frontend
+
+# Build lại toàn bộ
+docker compose up -d --build
+```
+
+Script tiện ích (Windows):
+
+| Script | Mô tả |
+|--------|-------|
+| `scripts\start.ps1` | `docker compose up -d --build` |
+| `scripts\stop.ps1` | `docker compose down` |
+| `scripts\rebuild-backend.ps1` | Build lại backend |
+| `scripts\rebuild-frontend.ps1` | Build lại frontend |
+
+## Cách build hoạt động (không cần Maven local)
+
+```
+Dockerfile (root)     → cài Maven trong container → mvn package → chạy .jar
+frontend/Dockerfile   → cài npm trong container   → npm run build → Nginx
+```
+
+Bạn sửa code → chạy `docker compose up -d --build` (hoặc `--build app` / `frontend`) → Docker build lại image.
 
 ## Cấu trúc thư mục
 
 ```
 task_management_java/
-├── pom.xml                         # Dependencies & build Maven
-├── Dockerfile                      # Build image Spring Boot
-├── docker-compose.yml              # Postgres + App
-├── docker-compose.dev.yml          # Chỉ Postgres (dev local)
-├── .env.example                    # Mẫu biến môi trường
-└── src/main/
-    ├── java/com/taskmanagement/
-    │   ├── TaskManagementApplication.java
-    │   └── controller/HealthController.java
-    └── resources/
-        ├── application.yml
-        └── application-docker.yml
+├── pom.xml, Dockerfile, src/     # Backend
+├── frontend/                     # Vue 3
+├── docker-compose.yml            # Postgres + App + Frontend
+├── docker-compose.dev.yml        # (tùy chọn) chỉ Postgres
+└── scripts/                      # Helper PowerShell
 ```
 
-## Chạy nhanh (Docker)
+## Kiểm tra API
 
-```bash
-# Clone / vào thư mục dự án
-cd task_management_java
-
-# Build và chạy Postgres + App
-docker compose up -d
-
-# Xem log
-docker compose logs -f app
-```
-
-Ứng dụng chạy tại: **http://localhost:8080**
-
-### Kiểm tra health
-
-```bash
-# Actuator — kiểm tra app, database, disk, ...
-curl http://localhost:8080/actuator/health
-
-# API health — endpoint đơn giản cho client
+```powershell
 curl http://localhost:8080/api/health
+curl http://localhost:8080/actuator/health
 ```
 
-Ví dụ response `/api/health`:
+Hoặc mở http://localhost:5173 — trang Vue tự kiểm tra backend.
 
-```json
-{
-  "status": "UP",
-  "service": "task-management"
-}
-```
+## Cấu hình (tùy chọn)
 
-### Dừng services
+Copy `.env.example` → `.env` nếu muốn đổi biến môi trường. Docker Compose đã set sẵn kết nối DB.
 
-```bash
-docker compose down
+| Biến | Mặc định |
+|------|----------|
+| `DB_NAME` | `taskdb` |
+| `DB_USER` | `taskuser` |
+| `DB_PASSWORD` | `taskpass` |
+| `SERVER_PORT` | `8080` |
 
-# Dừng và xóa volume (mất dữ liệu DB)
-docker compose down -v
-```
+## Dev local không dùng Docker? (không bắt buộc)
 
-## Chạy local (develop trên máy)
+Chỉ dùng khi bạn **muốn** hot-reload nhanh và đã cài Java/Maven/Node:
 
-### Bước 1: Chạy PostgreSQL
+- `mvn spring-boot:run` — backend
+- `cd frontend && npm run dev` — frontend
+- `docker compose -f docker-compose.dev.yml up -d` — chỉ Postgres
 
-```bash
-docker compose -f docker-compose.dev.yml up -d
-```
-
-### Bước 2: Cấu hình biến môi trường (tùy chọn)
-
-```bash
-cp .env.example .env
-# Chỉnh sửa .env nếu cần
-```
-
-### Bước 3: Chạy Spring Boot
-
-```bash
-mvn spring-boot:run
-```
-
-Hoặc mở project trong IDE (IntelliJ / VS Code) và chạy `TaskManagementApplication`.
-
-## Cấu hình
-
-### Biến môi trường
-
-| Biến | Mặc định | Mô tả |
-|------|----------|-------|
-| `DB_HOST` | `localhost` | Host PostgreSQL |
-| `DB_PORT` | `5432` | Cổng PostgreSQL |
-| `DB_NAME` | `taskdb` | Tên database |
-| `DB_USER` | `taskuser` | Username |
-| `DB_PASSWORD` | `taskpass` | Password |
-| `SERVER_PORT` | `8080` | Cổng HTTP của app |
-
-Trong Docker Compose (`docker-compose.yml`), app dùng profile `docker` và host DB là `postgres` (tên service).
-
-### Database mặc định
-
-| Thuộc tính | Giá trị |
-|------------|---------|
-| Database | `taskdb` |
-| User | `taskuser` |
-| Password | `taskpass` |
-| Port (host) | `5432` |
-
-> **Lưu ý:** Không commit file `.env` chứa mật khẩu thật. File này đã được thêm vào `.gitignore`.
-
-## Health check
-
-| Endpoint | Mục đích |
-|----------|----------|
-| `GET /actuator/health` | Spring Actuator — kiểm tra app, kết nối DB, disk space, ping |
-| `GET /api/health` | Endpoint API tùy chỉnh — response JSON gọn cho frontend / gateway |
-
-Docker healthcheck của container `app` gọi `/actuator/health` để xác nhận service đang hoạt động.
-
-## Build
-
-### Build bằng Maven
-
-```bash
-mvn clean package -DskipTests
-java -jar target/task-management-0.0.1-SNAPSHOT.jar
-```
-
-### Build image Docker
-
-```bash
-docker compose build
-```
-
-## Lệnh Docker hữu ích
-
-```bash
-# Chỉ rebuild app
-docker compose up -d --build app
-
-# Vào shell container Postgres
-docker exec -it task-management-postgres psql -U taskuser -d taskdb
-
-# Xem trạng thái health của containers
-docker compose ps
-```
+**Khuyến nghị:** dùng `docker compose up -d --build` — đủ cho hầu hết trường hợp.
 
 ## API hiện có
 
-| Method | Path | Mô tả |
-|--------|------|-------|
-| `GET` | `/api/health` | Health check API |
-| `GET` | `/actuator/health` | Health check (Actuator) |
-| `GET` | `/actuator/info` | Thông tin ứng dụng |
+| Method | Path |
+|--------|------|
+| `GET` | `/api/health` |
+| `GET` | `/actuator/health` |
+| `GET` | `/actuator/info` |
 
 ## Roadmap
 
-- [ ] Entity & Repository (Task, User, …)
-- [ ] REST API CRUD
-- [ ] Authentication (JWT)
-- [ ] Database migration (Flyway / Liquibase)
-
-## License
-
-Private project — cập nhật khi cần.
+- [ ] Entity & CRUD Task
+- [ ] UI Vue cho task
+- [ ] JWT Authentication
+- [ ] Flyway migration
