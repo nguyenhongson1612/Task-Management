@@ -4,11 +4,49 @@ Monorepo **Backend (Spring Boot) + Frontend (Vue 3) + PostgreSQL** — chạy ho
 
 ## Chỉ cần cài
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+| Cách chạy | Cần |
+|-----------|-----|
+| Full Docker | [Docker Desktop](https://www.docker.com/products/docker-desktop/) |
+| **BE Docker + FE local** (khuyên khi sửa Vue) | Docker + [Node.js 20+](https://nodejs.org/) |
 
-Maven và npm chỉ chạy **bên trong container** khi build image — bạn không cần cài chúng.
+---
 
-## Chạy dự án (một lệnh)
+## Dev: Backend Docker + Frontend local (khuyên dùng khi code Vue)
+
+**Terminal 1 — Backend + PostgreSQL (Docker):**
+
+```powershell
+cd task_management_java
+.\scripts\dev-backend.ps1
+```
+
+Hoặc:
+
+```powershell
+docker compose stop frontend
+docker compose -f docker-compose.dev.yml up -d --build
+```
+
+**Terminal 2 — Frontend (Vite, hot reload):**
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+| | URL |
+|---|-----|
+| Frontend | http://localhost:5173 |
+| Backend API | http://localhost:8080 |
+
+Vite proxy `/api` → `localhost:8080` (xem `frontend/vite.config.js`). CORS đã cho phép port 5173 và 5174.
+
+> Dừng container `frontend` của full stack để **không chiếm port 5173**.
+
+---
+
+## Chạy full stack Docker (một lệnh)
 
 ```powershell
 cd task_management_java
@@ -114,15 +152,41 @@ Chỉ dùng khi bạn **muốn** hot-reload nhanh và đã cài Java/Maven/Node:
 
 ## API hiện có
 
-| Method | Path |
-|--------|------|
-| `GET` | `/api/health` |
-| `GET` | `/actuator/health` |
-| `GET` | `/actuator/info` |
+| Method | Path | Auth |
+|--------|------|------|
+| `GET` | `/api/health` | Không |
+| `POST` | `/api/auth/register` | Không |
+| `POST` | `/api/auth/login` | Không |
+| `GET` | `/api/auth/me` | JWT Bearer |
+| `GET` | `/actuator/health` | Không |
+
+### Đăng ký / đăng nhập
+
+```powershell
+# Đăng ký
+curl -X POST http://localhost:8080/api/auth/register `
+  -H "Content-Type: application/json" `
+  -d '{"email":"user@test.com","password":"123456","fullName":"Test User"}'
+
+# Đăng nhập
+curl -X POST http://localhost:8080/api/auth/login `
+  -H "Content-Type: application/json" `
+  -d '{"email":"user@test.com","password":"123456"}'
+
+# Lấy thông tin user (thay TOKEN)
+curl http://localhost:8080/api/auth/me -H "Authorization: Bearer TOKEN"
+```
+
+Bảng `users` được Hibernate tạo tự động (`ddl-auto: update`). Mật khẩu lưu dạng BCrypt.
+
+| Biến | Mặc định | Mô tả |
+|------|----------|-------|
+| `JWT_SECRET` | (xem `.env.example`) | Khóa ký JWT — **đổi khi production** |
+| `JWT_EXPIRATION_MS` | `86400000` | Hết hạn token (24h) |
 
 ## Roadmap
 
+- [x] User + JWT Authentication
 - [ ] Entity & CRUD Task
 - [ ] UI Vue cho task
-- [ ] JWT Authentication
 - [ ] Flyway migration

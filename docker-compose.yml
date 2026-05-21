@@ -29,6 +29,9 @@ services:
       DB_NAME: taskdb
       DB_USER: taskuser
       DB_PASSWORD: taskpass
+      JWT_SECRET: ${JWT_SECRET:-task-management-dev-secret-key-min-32-characters-long}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
     ports:
       - "8080:8080"
     healthcheck:

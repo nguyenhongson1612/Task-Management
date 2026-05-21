@@ -1,0 +1,9 @@
+target/
+frontend/
+.git/
+.idea/
+*.iml
+node_modules/
+frontend/dist/
+*.log
+.env
